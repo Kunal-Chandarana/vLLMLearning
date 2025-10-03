@@ -1,0 +1,85 @@
+# Model Configuration Templates
+# These configurations can be used as starting points for different models
+
+# Small Models (< 1B parameters)
+small_models:
+  gpt2:
+    model: "gpt2"
+    tensor_parallel_size: 1
+    gpu_memory_utilization: 0.9
+    max_model_len: 1024
+    max_num_seqs: 256
+    trust_remote_code: true
+    
+  distilgpt2:
+    model: "distilgpt2"
+    tensor_parallel_size: 1
+    gpu_memory_utilization: 0.9
+    max_model_len: 1024
+    max_num_seqs: 512
+    trust_remote_code: true
+
+# Medium Models (1B - 10B parameters)
+medium_models:
+  gpt2-medium:
+    model: "gpt2-medium"
+    tensor_parallel_size: 1
+    gpu_memory_utilization: 0.8
+    max_model_len: 1024
+    max_num_seqs: 128
+    trust_remote_code: true
+    
+  opt-1.3b:
+    model: "facebook/opt-1.3b"
+    tensor_parallel_size: 1
+    gpu_memory_utilization: 0.8
+    max_model_len: 2048
+    max_num_seqs: 64
+    trust_remote_code: true
+
+# Large Models (10B+ parameters)
+large_models:
+  opt-13b:
+    model: "facebook/opt-13b"
+    tensor_parallel_size: 2
+    gpu_memory_utilization: 0.7
+    max_model_len: 2048
+    max_num_seqs: 32
+    trust_remote_code: true
+    
+  llama-7b:
+    model: "huggyllama/llama-7b"
+    tensor_parallel_size: 1
+    gpu_memory_utilization: 0.7
+    max_model_len: 2048
+    max_num_seqs: 64
+    trust_remote_code: true
+
+# Sampling Parameter Presets
+sampling_presets:
+  conservative:
+    temperature: 0.2
+    top_p: 0.8
+    top_k: 40
+    repetition_penalty: 1.05
+    max_tokens: 100
+    
+  balanced:
+    temperature: 0.7
+    top_p: 0.9
+    top_k: 50
+    repetition_penalty: 1.1
+    max_tokens: 150
+    
+  creative:
+    temperature: 1.2
+    top_p: 0.95
+    top_k: 100
+    repetition_penalty: 1.15
+    max_tokens: 200
+    
+  deterministic:
+    temperature: 0.0
+    top_p: 1.0
+    max_tokens: 100
+

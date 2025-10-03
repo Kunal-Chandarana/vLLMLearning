@@ -1,0 +1,98 @@
+# Server Configuration Templates
+# These configurations can be used for different deployment scenarios
+
+# Development Server
+development:
+  host: "127.0.0.1"
+  port: 8000
+  workers: 1
+  log_level: "debug"
+  reload: true
+  model_config:
+    tensor_parallel_size: 1
+    gpu_memory_utilization: 0.8
+    max_model_len: 512
+    max_num_seqs: 128
+  cors:
+    allow_origins: ["*"]
+    allow_methods: ["*"]
+    allow_headers: ["*"]
+
+# Production Server
+production:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  log_level: "info"
+  reload: false
+  model_config:
+    tensor_parallel_size: 2
+    gpu_memory_utilization: 0.7
+    max_model_len: 2048
+    max_num_seqs: 64
+  cors:
+    allow_origins: ["https://yourdomain.com"]
+    allow_methods: ["GET", "POST"]
+    allow_headers: ["Content-Type", "Authorization"]
+  security:
+    require_auth: true
+    rate_limit: "100/minute"
+
+# High Throughput Server
+high_throughput:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 8
+  log_level: "warning"
+  reload: false
+  model_config:
+    tensor_parallel_size: 4
+    gpu_memory_utilization: 0.6
+    max_model_len: 1024
+    max_num_seqs: 256
+  optimization:
+    enable_chunked_prefill: true
+    max_num_batched_tokens: 8192
+    max_num_seqs: 256
+
+# Multi-Model Server
+multi_model:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 2
+  log_level: "info"
+  models:
+    - name: "small"
+      model: "gpt2"
+      tensor_parallel_size: 1
+      gpu_memory_utilization: 0.4
+    - name: "medium"
+      model: "gpt2-medium"
+      tensor_parallel_size: 1
+      gpu_memory_utilization: 0.6
+
+# Benchmark Configuration
+benchmark:
+  test_prompts:
+    - "The future of artificial intelligence is"
+    - "Climate change solutions include"
+    - "The most important skill for success is"
+    - "Innovation in technology will lead to"
+    - "The key to effective communication is"
+  
+  batch_sizes: [1, 2, 4, 8, 16, 32]
+  
+  sampling_configs:
+    - name: "conservative"
+      temperature: 0.2
+      max_tokens: 50
+    - name: "balanced"
+      temperature: 0.7
+      max_tokens: 50
+    - name: "creative"
+      temperature: 1.2
+      max_tokens: 50
+  
+  output_dir: "benchmark_results"
+  save_results: true
+
