@@ -38,10 +38,11 @@ def show_menu():
     print("3. 🎯 Run basic inference example")
     print("4. 🌐 Start API server")
     print("5. 🌊 Try streaming example")
-    print("6. 📊 Run benchmarks")
-    print("7. 📚 View all examples")
-    print("8. 🔧 Setup environment")
-    print("9. ❓ Help")
+    print("6. 🔤 Token decoding example")
+    print("7. 📊 Run benchmarks")
+    print("8. 📚 View all examples")
+    print("9. 🔧 Setup environment")
+    print("10. ❓ Help")
     print("0. 🚪 Exit")
     print()
 
@@ -93,7 +94,9 @@ def show_examples():
         ("03_streaming_example.py", "Real-time streaming responses"),
         ("04_batch_inference.py", "Efficient batch processing"),
         ("05_custom_sampling.py", "Custom sampling parameters"),
+        ("06_token_decoding.py", "Token-to-text conversion techniques"),
         ("07_benchmarking.py", "Performance benchmarking"),
+        ("08_enhanced_api_server.py", "API server with token decoding features"),
     ]
     
     for i, (filename, description) in enumerate(examples, 1):
@@ -125,6 +128,7 @@ def show_help():
     print("   1. First, test your installation (option 1)")
     print("   2. Download a small model like GPT-2 (option 2)")
     print("   3. Try the basic inference example (option 3)")
+    print("   4. Explore token decoding (option 6)")
     print()
     print("📁 Project Structure:")
     print("   examples/     - Learning examples")
@@ -163,7 +167,7 @@ def main():
         show_menu()
         
         try:
-            choice = input("Enter your choice (0-9): ").strip()
+            choice = input("Enter your choice (0-10): ").strip()
         except KeyboardInterrupt:
             print("\n\n👋 Goodbye!")
             break
@@ -184,15 +188,17 @@ def main():
         elif choice == "5":
             run_example("03_streaming_example.py")
         elif choice == "6":
-            run_example("07_benchmarking.py")
+            run_example("06_token_decoding.py")
         elif choice == "7":
-            show_examples()
+            run_example("07_benchmarking.py")
         elif choice == "8":
-            setup_environment()
+            show_examples()
         elif choice == "9":
+            setup_environment()
+        elif choice == "10":
             show_help()
         else:
-            print("❌ Invalid choice. Please enter 0-9.")
+            print("❌ Invalid choice. Please enter 0-10.")
         
         if choice != "0":
             input("\nPress Enter to continue...")
