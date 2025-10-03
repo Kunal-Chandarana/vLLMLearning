@@ -15,7 +15,7 @@ import psutil
 import os
 from typing import List, Tuple
 from vllm import LLM, SamplingParams
-from vllm.model_executor.parallel_utils.parallel_state import destroy_model_parallel
+from vllm.distributed import destroy_model_parallel
 
 
 class BatchInferenceExample:

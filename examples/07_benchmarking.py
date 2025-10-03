@@ -17,7 +17,7 @@ import time
 import json
 from typing import List, Dict, Any
 from vllm import LLM, SamplingParams
-from vllm.model_executor.parallel_utils.parallel_state import destroy_model_parallel
+from vllm.distributed import destroy_model_parallel
 
 # Add utils to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
