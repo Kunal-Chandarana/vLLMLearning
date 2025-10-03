@@ -39,10 +39,11 @@ def show_menu():
     print("4. 🌐 Start API server")
     print("5. 🌊 Try streaming example")
     print("6. 🔤 Token decoding example")
-    print("7. 📊 Run benchmarks")
-    print("8. 📚 View all examples")
-    print("9. 🔧 Setup environment")
-    print("10. ❓ Help")
+    print("7. 🔬 Enhanced API server (with token decoding)")
+    print("8. 📊 Run benchmarks")
+    print("9. 📚 View all examples")
+    print("10. 🔧 Setup environment")
+    print("11. ❓ Help")
     print("0. 🚪 Exit")
     print()
 
@@ -129,6 +130,7 @@ def show_help():
     print("   2. Download a small model like GPT-2 (option 2)")
     print("   3. Try the basic inference example (option 3)")
     print("   4. Explore token decoding (option 6)")
+    print("   5. Try the enhanced API server (option 7)")
     print()
     print("📁 Project Structure:")
     print("   examples/     - Learning examples")
@@ -167,7 +169,7 @@ def main():
         show_menu()
         
         try:
-            choice = input("Enter your choice (0-10): ").strip()
+            choice = input("Enter your choice (0-11): ").strip()
         except KeyboardInterrupt:
             print("\n\n👋 Goodbye!")
             break
@@ -190,15 +192,21 @@ def main():
         elif choice == "6":
             run_example("06_token_decoding.py")
         elif choice == "7":
-            run_example("07_benchmarking.py")
+            print("\n🔬 Starting Enhanced API server with token decoding...")
+            print("💡 This server includes token decoding features")
+            print("💡 Press Ctrl+C to stop the server")
+            print("💡 After starting, try: python demo_enhanced_api.py")
+            run_example("08_enhanced_api_server.py")
         elif choice == "8":
-            show_examples()
+            run_example("07_benchmarking.py")
         elif choice == "9":
-            setup_environment()
+            show_examples()
         elif choice == "10":
+            setup_environment()
+        elif choice == "11":
             show_help()
         else:
-            print("❌ Invalid choice. Please enter 0-10.")
+            print("❌ Invalid choice. Please enter 0-11.")
         
         if choice != "0":
             input("\nPress Enter to continue...")
