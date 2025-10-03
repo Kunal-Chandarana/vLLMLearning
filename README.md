@@ -24,8 +24,9 @@ vLLMLearning/
 │   ├── 03_streaming_example.py    # Streaming responses
 │   ├── 04_batch_inference.py      # Batch processing
 │   ├── 05_custom_sampling.py      # Custom sampling parameters
-│   ├── 06_multi_model.py          # Multiple model serving
-│   └── 07_benchmarking.py         # Performance benchmarking
+│   ├── 06_token_decoding.py       # Token-to-text conversion
+│   ├── 07_benchmarking.py         # Performance benchmarking
+│   └── 08_enhanced_api_server.py  # API server with token decoding
 ├── notebooks/               # Jupyter notebooks for interactive learning
 │   ├── vLLM_Basics.ipynb         # Interactive basics tutorial
 │   └── Performance_Analysis.ipynb # Performance comparison
@@ -86,8 +87,11 @@ python examples/02_api_server.py
 2. **API serving**: `examples/02_api_server.py`
 3. **Streaming**: `examples/03_streaming_example.py`
 4. **Batch processing**: `examples/04_batch_inference.py`
-5. **Advanced features**: Explore remaining examples
-6. **Interactive learning**: Use Jupyter notebooks in `notebooks/`
+5. **Custom sampling**: `examples/05_custom_sampling.py`
+6. **Token decoding**: `examples/06_token_decoding.py`
+7. **Performance benchmarking**: `examples/07_benchmarking.py`
+8. **Enhanced API with tokens**: `examples/08_enhanced_api_server.py`
+9. **Interactive learning**: Use Jupyter notebooks in `notebooks/`
 
 ## Hardware Requirements
 
