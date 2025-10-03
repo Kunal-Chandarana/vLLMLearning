@@ -14,7 +14,7 @@ import os
 import sys
 from typing import List, Optional
 from vllm import LLM, SamplingParams
-from vllm.model_executor.parallel_utils.parallel_state import destroy_model_parallel
+from vllm.distributed import destroy_model_parallel
 
 
 def basic_inference_example():
