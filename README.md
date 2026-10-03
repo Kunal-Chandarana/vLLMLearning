@@ -27,9 +27,12 @@ vLLMLearning/
 │   ├── 06_token_decoding.py       # Token-to-text conversion
 │   ├── 07_benchmarking.py         # Performance benchmarking
 │   └── 08_enhanced_api_server.py  # API server with token decoding
-├── notebooks/               # Jupyter notebooks for interactive learning
-│   ├── vLLM_Basics.ipynb         # Interactive basics tutorial
-│   └── Performance_Analysis.ipynb # Performance comparison
+├── benchmarks/              # Serving benchmark: TTFT / TPOT / ITL / goodput under load
+│   ├── serving_benchmark.py      # Load generator for OpenAI-compatible servers
+│   ├── metrics.py                # Metric definitions and aggregation
+│   ├── plot_results.py           # Latency / throughput plots
+│   └── mock_server.py            # Fake server for testing without a GPU
+├── tests/                   # Unit tests (pytest)
 ├── scripts/                 # Utility scripts
 │   ├── setup_environment.sh      # Environment setup
 │   ├── download_models.py        # Model downloading utility
@@ -91,7 +94,7 @@ python examples/02_api_server.py
 6. **Token decoding**: `examples/06_token_decoding.py`
 7. **Performance benchmarking**: `examples/07_benchmarking.py`
 8. **Enhanced API with tokens**: `examples/08_enhanced_api_server.py`
-9. **Interactive learning**: Use Jupyter notebooks in `notebooks/`
+9. **Serving benchmark**: [`benchmarks/`](benchmarks/README.md) measures TTFT, TPOT, ITL and goodput against a live server
 
 ## Hardware Requirements
 
