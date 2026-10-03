@@ -284,3 +284,4 @@ temp/
 tmp/
 scratch/
 experiments/
+mock_server.log
