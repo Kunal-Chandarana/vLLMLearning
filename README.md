@@ -34,6 +34,7 @@ vLLMLearning/
 │   ├── metrics.py                # Metric definitions and aggregation
 │   ├── plot_results.py           # Latency / throughput plots
 │   └── mock_server.py            # Fake server for testing without a GPU
+├── nanoserve/               # Mini inference engine built from scratch (see nanoserve/README.md)
 ├── tests/                   # Unit tests (pytest)
 ├── scripts/                 # Utility scripts
 │   ├── setup_environment.sh      # Environment setup
@@ -97,6 +98,7 @@ python examples/02_api_server.py
 7. **Performance benchmarking**: `examples/07_benchmarking.py`
 8. **Enhanced API with tokens**: `examples/08_enhanced_api_server.py`
 9. **Serving benchmark**: [`benchmarks/`](benchmarks/README.md) measures TTFT, TPOT, ITL and goodput against a live server
+10. **Build an engine**: [`nanoserve/`](nanoserve/README.md) is a mini vLLM written from scratch, step by step
 
 ## Hardware Requirements
 
