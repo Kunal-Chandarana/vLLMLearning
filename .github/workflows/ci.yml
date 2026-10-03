@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      # Only what the benchmark and tests need; vllm itself requires a GPU.
+      - name: Install dependencies
+        run: pip install numpy pytest aiohttp fastapi uvicorn matplotlib
+
+      - name: Unit tests
+        run: pytest -q tests
+
+      - name: Benchmark smoke test against mock server
+        run: |
+          python benchmarks/mock_server.py --port 8001 > mock_server.log 2>&1 &
+          SERVER_PID=$!
+          for i in $(seq 1 20); do curl -sf localhost:8001/v1/models && break; sleep 0.5; done
+          python benchmarks/serving_benchmark.py --base-url http://localhost:8001 \
+            --input-len 128 --output-len 16 --concurrency 1,8 --num-requests 16 --tag ci
+          python benchmarks/plot_results.py benchmarks/results/ci-*.json
+          python - <<'PY'
+          import glob, json
+          data = json.load(open(glob.glob("benchmarks/results/ci-*.json")[0]))
+          for run in data["runs"]:
+              s = run["summary"]
+              assert s["failed"] == 0, f"{s['failed']} failed requests at load {run['load_value']}: {s['errors']}"
+          print("all requests succeeded")
+          PY
+          kill $SERVER_PID

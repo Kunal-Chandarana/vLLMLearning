@@ -1,5 +1,7 @@
 # vLLM Learning Project
 
+[![CI](https://github.com/Kunal-Chandarana/vLLMLearning/actions/workflows/ci.yml/badge.svg)](https://github.com/Kunal-Chandarana/vLLMLearning/actions/workflows/ci.yml)
+
 A comprehensive sample project to learn and experiment with vLLM (Very Large Language Model) inference and serving.
 
 ## What is vLLM?
