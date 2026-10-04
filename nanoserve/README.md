@@ -8,7 +8,7 @@ implementation.
 |---|---|---|
 | 1 | Qwen2 written from scratch (GQA, RoPE, SwiGLU, RMSNorm), loading HF safetensors | ✅ |
 | 2 | Paged KV cache: fixed-size blocks, block allocator, per-sequence block tables | ✅ |
-| 3 | Continuous-batching scheduler: mixed prefill + decode, preemption when blocks run out | |
+| 3 | Continuous-batching scheduler: mixed prefill + decode, preemption when blocks run out | ✅ |
 | 4 | OpenAI-compatible streaming server, measured with [`benchmarks/`](../benchmarks/README.md) | |
 | 5 | Head-to-head with `vllm serve` on the same GPU, with a write-up of the gap | |
 
@@ -63,6 +63,49 @@ tensor, then runs SDPA per sequence in a Python loop. That's correct but slow.
 vLLM's PagedAttention kernel reads K/V straight from the scattered blocks
 inside the kernel, for the whole batch at once.
 
+## Continuous batching (step 3)
+
+`engine.py` has an `LLMEngine` that accepts requests at any time. Each
+`step()` the scheduler builds a fresh batch under a token budget
+(`max_num_batched_tokens`), in the same order as vLLM's V1 scheduler:
+
+1. **Running requests first, oldest first.** A request still prefilling gets
+   its next prompt chunk; a decoding request gets one token. If no KV block
+   is free, the **newest** running request is **preempted**: its blocks are
+   freed and it goes to the front of the waiting queue. When it's rescheduled,
+   it recomputes its KV from prompt + output so far (vLLM's default
+   "recompute" mode, rather than swapping to CPU).
+2. **Then waiting requests**, first come first served, while the budget,
+   `max_num_seqs` and free blocks allow. A prompt bigger than the remaining
+   budget is split across steps (**chunked prefill**), so a 4,000-token
+   prompt can't stall every running decode for a whole step.
+
+A request samples a token only in a step where its scheduled tokens reach the
+end of everything it knows: the last prompt chunk, or a decode step.
+
+**Measured on the real model:** Qwen2.5-0.5B on an M-series CPU, 16 requests,
+at most 8 running at once, output lengths mixed between 8 and 128 tokens:
+
+| | Wall time | Useful tok/s | Mean TTFT |
+|---|---|---|---|
+| Static batching (groups of 8, each group runs to its longest request) | 12.7 s | 69 | ~5.1 s |
+| Continuous batching (finished requests replaced immediately) | 9.8 s | 90 | 1.8 s |
+
+The two give identical outputs. Static batching wastes decode slots on
+requests that already finished, and makes new requests wait for the slowest
+request in the group. The more uneven the output lengths, the bigger the gap.
+
+**Tests** (`tests/test_nanoserve_engine.py`) put the scheduler under pressure
+and require greedy output identical to one-request-at-a-time generation:
+- a `max_num_seqs` cap, which leaves requests queued;
+- a tiny token budget, which forces chunked prefill;
+- a cache too small for the workload, which forces preemption and recompute;
+- requests arriving mid-flight.
+
+They also check invariants: the token budget is never exceeded, decodes keep
+running while a long prompt is chunked in, every block is freed at the end,
+and seeded sampling is reproducible.
+
 ## Usage
 
 ```bash
@@ -77,6 +120,7 @@ python -m nanoserve.generate --device mps --dtype float16   # Apple GPU
 pytest tests/test_nanoserve_model.py                          # tiny random model, no download
 NANOSERVE_REAL_MODEL=1 pytest tests/test_nanoserve_model.py   # + Qwen2.5-0.5B-Instruct (~1 GB)
 pytest tests/test_nanoserve_paged.py                          # paged cache vs contiguous, batching
+pytest tests/test_nanoserve_engine.py                         # scheduler: chunking, preemption, arrivals
 ```
 
 The tests check prefill logits, prefill followed by token-by-token decode, and
