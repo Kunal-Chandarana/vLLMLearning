@@ -34,7 +34,13 @@ class ModelConfig:
     @classmethod
     def from_dict(cls, d: dict) -> "ModelConfig":
         fields = cls.__dataclass_fields__
-        return cls(**{k: v for k, v in d.items() if k in fields})
+        kwargs = {k: v for k, v in d.items() if k in fields}
+        # transformers 5 nests RoPE settings under rope_parameters instead of
+        # a top-level rope_theta; accept either layout.
+        rope = d.get("rope_parameters") or {}
+        if "rope_theta" in rope:
+            kwargs["rope_theta"] = rope["rope_theta"]
+        return cls(**kwargs)
 
     @classmethod
     def from_pretrained(cls, model_dir: str) -> "ModelConfig":

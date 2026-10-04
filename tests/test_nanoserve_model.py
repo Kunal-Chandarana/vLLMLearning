@@ -20,6 +20,14 @@ from nanoserve.loader import load_weights
 from nanoserve.model import Qwen2Model
 
 
+def test_config_reads_rope_theta_from_either_layout():
+    base = dict(vocab_size=8, hidden_size=8, intermediate_size=8, num_hidden_layers=1,
+                num_attention_heads=2, num_key_value_heads=1, max_position_embeddings=8)
+    assert ModelConfig.from_dict({**base, "rope_theta": 10000.0}).rope_theta == 10000.0  # transformers 4
+    assert ModelConfig.from_dict({**base, "rope_parameters": {"rope_type": "default", "rope_theta": 500.0}}
+                                 ).rope_theta == 500.0  # transformers 5
+
+
 def tiny_pair(tie_word_embeddings: bool):
     """A random tiny Qwen2 in both implementations, with identical weights."""
     torch.manual_seed(0)
@@ -29,6 +37,7 @@ def tiny_pair(tie_word_embeddings: bool):
         rope_theta=10000.0, tie_word_embeddings=tie_word_embeddings)
     hf = transformers.Qwen2ForCausalLM(hf_config).eval()
     ours = Qwen2Model(ModelConfig.from_dict(hf_config.to_dict())).eval()
+    assert ours.config.rope_theta == 10000.0
     load_weights(ours, hf.state_dict())
     return hf, ours
 
