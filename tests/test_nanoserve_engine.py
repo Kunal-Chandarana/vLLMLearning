@@ -131,3 +131,19 @@ def test_seeded_sampling_is_reproducible(model):
         engine = LLMEngine(model, SchedulerConfig(num_blocks=32, block_size=4))
         runs.append(engine.generate(prompts, 10, temperature=1.0, seed=123))
     assert runs[0] == runs[1]
+
+
+def test_abort_frees_running_and_waiting_requests(model):
+    prompts = make_prompts([6, 6, 6])
+    engine = LLMEngine(model, SchedulerConfig(max_num_seqs=2, num_blocks=32, block_size=4))
+    ids = [engine.add_request(p, 30) for p in prompts]
+    engine.step()                               # two running, one waiting
+    engine.abort_request(ids[0])                # running
+    engine.abort_request(ids[2])                # waiting
+    assert engine.requests[ids[0]].finish_reason == "abort"
+    assert engine.requests[ids[2]].finish_reason == "abort"
+    while engine.has_unfinished_requests():
+        engine.step()
+    assert engine.requests[ids[1]].output_ids == reference(model, [prompts[1]], 30)[0]
+    assert engine.requests[ids[2]].output_ids == []
+    assert_all_blocks_free(engine)
