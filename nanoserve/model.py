@@ -20,6 +20,7 @@ from typing import Protocol
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.profiler import record_function
 
 from .config import ModelConfig
 
@@ -95,7 +96,9 @@ class Attention(nn.Module):
         k = self.k_proj(x).view(n, self.num_kv_heads, self.head_dim)
         v = self.v_proj(x).view(n, self.num_kv_heads, self.head_dim)
         q, k = rope(positions, q, k)
-        out = backend.forward(self.layer_idx, q, k, v)
+        # Labels show up in torch.profiler traces (see profile_step.py); ~free otherwise.
+        with record_function("attention"):
+            out = backend.forward(self.layer_idx, q, k, v)
         return self.o_proj(out.reshape(n, self.num_heads * self.head_dim))
 
 
@@ -122,7 +125,8 @@ class DecoderLayer(nn.Module):
 
     def forward(self, x, positions, rope, backend):
         x = x + self.self_attn(self.input_layernorm(x), positions, rope, backend)
-        x = x + self.mlp(self.post_attention_layernorm(x))
+        with record_function("mlp"):
+            x = x + self.mlp(self.post_attention_layernorm(x))
         return x
 
 

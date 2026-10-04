@@ -20,6 +20,8 @@ the tail, and the tail is what users notice.
 - `metrics.py`: metric definitions and aggregation (unit tested in `tests/test_metrics.py`)
 - `plot_results.py`: 2×2 figure: throughput, TTFT, TPOT, and the throughput vs per-user speed trade-off
 - `mock_server.py`: fake streaming server for testing the harness without a GPU
+- `compare_results.py`: two result files side by side, with ratios
+- `compare_engines.sh`: vLLM vs nanoserve on one GPU, end to end (see [nanoserve/README.md](../nanoserve/README.md#vllm-vs-nanoserve-on-a-gpu-step-5))
 
 ## Try it locally (no GPU)
 
