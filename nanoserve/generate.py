@@ -50,6 +50,47 @@ def generate(model: Qwen2Model, prompt_ids: List[int], max_new_tokens: int,
         positions = torch.tensor([cache.seq_len], device=device)
 
 
+def generate_batch(model: Qwen2Model, prompts: List[List[int]], max_new_tokens: int,
+                   num_blocks: int, block_size: int = 16,
+                   eos_token_id: Optional[int] = None) -> List[List[int]]:
+    """Greedy-decode several prompts together on a paged KV cache.
+
+    Pass 1 prefills every prompt in a single forward. After that, each pass
+    decodes one token for every sequence still running. A sequence that hits
+    EOS leaves the batch and its blocks go straight back to the free list.
+    (Step 3's scheduler adds the missing half: admitting new requests mid-flight.)
+    """
+    from .paged_attention import PagedKVCache
+
+    device = model.embed_tokens.weight.device
+    dtype = model.embed_tokens.weight.dtype
+    cache = PagedKVCache(model.config, num_blocks, block_size, dtype, device)
+    outputs: List[List[int]] = [[] for _ in prompts]
+    pending = {i: list(p) for i, p in enumerate(prompts)}  # tokens to feed next pass
+    for i in pending:
+        cache.add_sequence(i)
+
+    while pending:
+        step = [(i, len(toks)) for i, toks in pending.items()]
+        positions = cache.begin_step(step)
+        input_ids = torch.tensor([t for toks in pending.values() for t in toks], device=device)
+        hidden = model(input_ids, positions, cache)
+        cache.end_step()
+
+        # Each sequence samples from the hidden state of its last token this pass.
+        last_rows = torch.tensor([n for _, n in step], device=device).cumsum(0) - 1
+        next_ids = model.compute_logits(hidden[last_rows]).argmax(-1).tolist()
+
+        pending = {}
+        for (seq_id, _), token in zip(step, next_ids):
+            outputs[seq_id].append(token)
+            if token == eos_token_id or len(outputs[seq_id]) == max_new_tokens:
+                cache.free_sequence(seq_id)
+            else:
+                pending[seq_id] = [token]
+    return outputs
+
+
 def main():
     from transformers import AutoTokenizer
     from .loader import load_model

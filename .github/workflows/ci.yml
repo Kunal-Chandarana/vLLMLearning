@@ -9,6 +9,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.9", "3.12"]
     steps:
@@ -18,9 +19,12 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      # Only what the benchmark and tests need; vllm itself requires a GPU.
+      # Only what the benchmark, nanoserve and tests need; vllm itself requires
+      # a GPU. CPU-only torch keeps the install small.
       - name: Install dependencies
-        run: pip install numpy pytest aiohttp fastapi uvicorn matplotlib
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install numpy pytest aiohttp fastapi uvicorn matplotlib transformers safetensors huggingface_hub
 
       - name: Unit tests
         run: pytest -q tests
