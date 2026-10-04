@@ -10,7 +10,7 @@ implementation.
 | 2 | Paged KV cache: fixed-size blocks, block allocator, per-sequence block tables | ✅ |
 | 3 | Continuous-batching scheduler: mixed prefill + decode, preemption when blocks run out | ✅ |
 | 4 | OpenAI-compatible streaming server, measured with [`benchmarks/`](../benchmarks/README.md) | ✅ |
-| 5 | Head-to-head with `vllm serve` on the same GPU, with a write-up of the gap | |
+| 5 | Head-to-head with `vllm serve` on the same GPU, with a write-up of the gap | script ready; needs a GPU run |
 
 ## Design
 
@@ -150,6 +150,48 @@ latency. That's the central trade-off of LLM serving. On a CPU the decode
 step is compute-bound, so TPOT grows almost linearly with batch size. On a
 GPU, decode is memory-bandwidth-bound, so TPOT stays nearly flat until the
 batch is large. That's why GPUs batch so well, and step 5 will show it.
+
+## vLLM vs nanoserve on a GPU (step 5)
+
+`benchmarks/compare_engines.sh` runs the whole comparison on one rented GPU:
+
+1. It benchmarks `vllm serve`.
+2. It benchmarks nanoserve with the same model, dtype, `max_num_seqs` and
+   workload.
+3. It profiles a nanoserve decode step.
+4. It writes the plots, a side-by-side table and the logs to
+   `benchmarks/results/gpu/`.
+
+```bash
+# On the GPU machine (any NVIDIA GPU with 16 GB+; an L4 or A10G costs ~$1/hour)
+git clone https://github.com/Kunal-Chandarana/vLLMLearning.git && cd vLLMLearning
+bash benchmarks/compare_engines.sh          # ~20-30 min
+# copy benchmarks/results/gpu/ back, commit it
+```
+
+**What to expect, and why.** nanoserve has the same *algorithms* as vLLM
+(paged KV cache, continuous batching, chunked prefill). The gap comes from
+*execution*:
+
+- **CPU launch overhead.** Each decode step, nanoserve issues hundreds of
+  small GPU kernels from Python: per layer, and per sequence inside the
+  attention loop. The GPU finishes each one in microseconds, then waits for
+  Python. `profile_step.py` reports this directly as GPU busy time / wall
+  time. vLLM records the whole decode step once as a **CUDA graph** and
+  replays it with a single launch.
+- **Attention kernel.** nanoserve copies each sequence's scattered blocks into
+  a contiguous tensor, then runs attention one sequence at a time. vLLM's
+  **PagedAttention / FlashAttention kernels** read the blocks in place, for the
+  whole batch, in one launch.
+- **Fused ops.** vLLM fuses RMSNorm, RoPE, SiLU-and-multiply and residual adds
+  into single kernels. nanoserve runs each as separate PyTorch ops, and each op
+  is another round trip to GPU memory.
+- **Sampling and scheduling.** vLLM batches sampling on the GPU and overlaps
+  CPU scheduling with GPU work. nanoserve does both serially in Python.
+
+Expect the gap to be **largest at high concurrency**: nanoserve's per-sequence
+attention loop grows with the batch, while vLLM's kernels barely notice. At
+concurrency 1 the gap is mostly launch overhead.
 
 ## Usage
 
