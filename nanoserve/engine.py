@@ -25,9 +25,10 @@ the end of everything it knows (the last prompt chunk, or a decode step).
 
 import itertools
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import Deque, Dict, List, Optional, Tuple
 
 import torch
 
@@ -153,11 +154,14 @@ class Scheduler:
         return scheduled
 
     def finish(self, req: Request, reason: str):
+        if req.status is Status.RUNNING:
+            self.running.remove(req)
+            self.cache.free_sequence(req.request_id)
+        elif req.status is Status.WAITING:
+            self.waiting.remove(req)
         req.status = Status.FINISHED
         req.finish_reason = reason
         req.finish_time = time.perf_counter()
-        self.running.remove(req)
-        self.cache.free_sequence(req.request_id)
 
 
 class LLMEngine:
@@ -171,7 +175,9 @@ class LLMEngine:
         self.scheduler = Scheduler(self.config, self.cache)
         self.requests: Dict[int, Request] = {}
         self._ids = itertools.count()
-        self.step_log: List[Dict] = []  # per-step batch composition, for analysis and tests
+        # Per-step batch composition, for analysis and tests. Bounded so a
+        # long-running server doesn't grow it forever.
+        self.step_log: Deque[Dict] = deque(maxlen=10_000)
 
     def add_request(self, prompt_ids: List[int], max_tokens: int, temperature: float = 0.0,
                     eos_token_id: Optional[int] = None, seed: Optional[int] = None) -> int:
@@ -186,6 +192,16 @@ class LLMEngine:
         self.requests[req.request_id] = req
         self.scheduler.add(req)
         return req.request_id
+
+    def abort_request(self, request_id: int):
+        """Stop a request (e.g. its client disconnected) and free its blocks."""
+        req = self.requests.get(request_id)
+        if req is not None and req.status is not Status.FINISHED:
+            self.scheduler.finish(req, "abort")
+
+    def release(self, request_id: int) -> Optional[Request]:
+        """Forget a finished request. A server calls this once the result is delivered."""
+        return self.requests.pop(request_id, None)
 
     def has_unfinished_requests(self) -> bool:
         return self.scheduler.has_work()

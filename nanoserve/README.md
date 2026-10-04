@@ -9,7 +9,7 @@ implementation.
 | 1 | Qwen2 written from scratch (GQA, RoPE, SwiGLU, RMSNorm), loading HF safetensors | ✅ |
 | 2 | Paged KV cache: fixed-size blocks, block allocator, per-sequence block tables | ✅ |
 | 3 | Continuous-batching scheduler: mixed prefill + decode, preemption when blocks run out | ✅ |
-| 4 | OpenAI-compatible streaming server, measured with [`benchmarks/`](../benchmarks/README.md) | |
+| 4 | OpenAI-compatible streaming server, measured with [`benchmarks/`](../benchmarks/README.md) | ✅ |
 | 5 | Head-to-head with `vllm serve` on the same GPU, with a write-up of the gap | |
 
 ## Design
@@ -106,6 +106,51 @@ They also check invariants: the token budget is never exceeded, decodes keep
 running while a long prompt is chunked in, every block is freed at the end,
 and seeded sampling is reproducible.
 
+## OpenAI-compatible server (step 4)
+
+```bash
+python -m nanoserve.server --model Qwen/Qwen2.5-0.5B-Instruct --port 8000 --kv-cache-gb 1
+curl localhost:8000/v1/chat/completions -H 'Content-Type: application/json' \
+  -d '{"messages": [{"role": "user", "content": "What is a KV cache?"}], "stream": true}'
+```
+
+`server.py` serves `/v1/completions` and `/v1/chat/completions`, streaming
+(SSE) or not, plus `/v1/models`, `/health` and `/metrics`. The metrics endpoint
+reports running/waiting requests, free blocks, preemptions and aborts.
+
+- **Engine on its own thread.** A forward pass blocks, so it can't run on the
+  asyncio event loop. HTTP handlers hand requests and aborts to the engine
+  thread through a thread-safe inbox. The engine thread pushes each token
+  back to the handler's `asyncio.Queue` with `call_soon_threadsafe`. Between
+  steps it drains the inbox, so a new request joins the very next batch.
+- **Client disconnects abort the request** and free its KV blocks right
+  away, instead of generating tokens nobody will read.
+- **Incremental detokenization** decodes the whole output and emits the new
+  suffix, holding back a trailing U+FFFD until a multi-byte character is
+  complete. Decoding token by token would garble emoji and CJK text.
+- **`--kv-cache-gb`** sizes the paged cache the way vLLM's
+  `--gpu-memory-utilization` does. 1 GB = 2,730 blocks of 16 tokens = 43,680
+  tokens for Qwen2.5-0.5B in fp32.
+
+**Benchmarked with [`benchmarks/serving_benchmark.py`](../benchmarks/README.md)**
+on an M-series CPU, fp32, 256-token prompts, 64-token outputs. All 128
+requests succeeded:
+
+![nanoserve CPU benchmark](nanoserve_cpu_benchmark.png)
+
+| Concurrency | Output tok/s | TTFT p50 | TPOT p50 |
+|---|---|---|---|
+| 1 | 27 | 198 ms | 34 ms |
+| 4 | 51 | 683 ms | 71 ms |
+| 8 | 75 | 1,282 ms | 87 ms |
+| 16 | 99 | 1,810 ms | 136 ms |
+
+Batching buys 3.6× throughput, and each user pays for it in per-token
+latency. That's the central trade-off of LLM serving. On a CPU the decode
+step is compute-bound, so TPOT grows almost linearly with batch size. On a
+GPU, decode is memory-bandwidth-bound, so TPOT stays nearly flat until the
+batch is large. That's why GPUs batch so well, and step 5 will show it.
+
 ## Usage
 
 ```bash
@@ -121,6 +166,7 @@ pytest tests/test_nanoserve_model.py                          # tiny random mode
 NANOSERVE_REAL_MODEL=1 pytest tests/test_nanoserve_model.py   # + Qwen2.5-0.5B-Instruct (~1 GB)
 pytest tests/test_nanoserve_paged.py                          # paged cache vs contiguous, batching
 pytest tests/test_nanoserve_engine.py                         # scheduler: chunking, preemption, arrivals
+pytest tests/test_nanoserve_server.py                         # HTTP: streaming, batching, disconnects
 ```
 
 The tests check prefill logits, prefill followed by token-by-token decode, and
